@@ -1,0 +1,1141 @@
+<!DOCTYPE html>
+<html lang="it">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Trading Desk – Crypto & Forex (Free APIs)</title>
+  <meta name="description" content="Webapp di trading simulato con crypto e forex. Dati live via CoinGecko ed exchangerate.host. Nessuna registrazione.">
+  <style>
+    :root{
+      --bg: #0b0e12;
+      --bg-soft:#11151b;
+      --card:#141922;
+      --muted:#8b97a3;
+      --text:#e6ebf0;
+      --accent:#4cc9f0;
+      --accent-2:#a0e9ff;
+      --up:#41d19a;
+      --down:#ff6b6b;
+      --warn:#faae2b;
+      --border:#202835;
+      --shadow: 0 8px 28px rgba(0,0,0,.35);
+      --radius: 14px;
+      --radius-sm: 10px;
+      --radius-xs: 8px;
+      --gap: 14px;
+      --font: ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, Inter, Arial, "Apple Color Emoji", "Segoe UI Emoji";
+      --mono: ui-monospace, "SF Mono", Menlo, Consolas, monospace;
+    }
+    [data-theme="light"]{
+      --bg:#f6f8fb;
+      --bg-soft:#fff;
+      --card:#ffffff;
+      --muted:#4b5563;
+      --text:#0f172a;
+      --accent:#2563eb;
+      --accent-2:#60a5fa;
+      --up:#059669;
+      --down:#dc2626;
+      --warn:#b45309;
+      --border:#e5e7eb;
+      --shadow: 0 12px 28px rgba(2,8,23,.08);
+    }
+    *{box-sizing:border-box}
+    html,body{height:100%}
+    body{
+      margin:0;
+      background:linear-gradient(180deg,var(--bg) 0%, var(--bg-soft) 100%);
+      color:var(--text);
+      font: 14px/1.4 var(--font);
+      letter-spacing:.2px;
+    }
+    header{
+      position:sticky; top:0; z-index:10;
+      backdrop-filter:saturate(1.2) blur(10px);
+      background: color-mix(in oklab, var(--bg) 80%, transparent);
+      border-bottom:1px solid var(--border);
+    }
+    .bar{
+      display:flex; align-items:center; gap:12px;
+      padding: 14px clamp(12px,2vw,24px);
+      max-width:1280px; margin:0 auto;
+    }
+    .logo{
+      display:flex; align-items:center; gap:10px; font-weight:800; letter-spacing:.4px;
+    }
+    .logo-dot{
+      width:10px; height:10px; border-radius:50%;
+      background: radial-gradient(circle at 30% 30%, var(--accent-2), var(--accent));
+      box-shadow: 0 0 0 4px color-mix(in oklab, var(--accent) 15%, transparent),
+                  0 0 18px var(--accent);
+    }
+    .spacer{flex:1}
+    .toolbar{display:flex; gap:10px; align-items:center}
+    .select, .input, .button{
+      appearance:none; border:1px solid var(--border); background:var(--card); color:var(--text);
+      border-radius: var(--radius-xs); padding:10px 12px; outline:none; box-shadow:none;
+      transition: border-color .2s, transform .06s, background .2s;
+    }
+    .select:focus, .input:focus{border-color:var(--accent)}
+    .button{cursor:pointer; font-weight:600}
+    .button:hover{border-color:var(--accent); transform: translateY(-1px)}
+    .button.primary{
+      background: linear-gradient(180deg, var(--accent-2), var(--accent));
+      color:#001018; border-color: color-mix(in oklab, var(--accent), transparent 70%);
+    }
+    .button.ghost{background:transparent}
+    .kbd{
+      font-family:var(--mono); font-size:12px; border:1px solid var(--border); border-bottom-width:2px;
+      padding:2px 6px; border-radius:6px; background:var(--card); color:var(--muted);
+    }
+    main{
+      max-width:1280px; margin:18px auto; padding: 0 clamp(12px,2vw,24px);
+      display:grid; grid-template-columns:280px 1fr; gap: var(--gap);
+    }
+    @media (max-width: 980px){ main{grid-template-columns:1fr}}
+    .panel{
+      background: var(--card); border:1px solid var(--border); border-radius: var(--radius);
+      box-shadow: var(--shadow);
+    }
+    .panel .head{
+      display:flex; align-items:center; justify-content:space-between; padding:14px 16px; border-bottom:1px solid var(--border);
+    }
+    .panel .body{padding:12px 14px}
+    .muted{color:var(--muted)}
+    .row{display:flex; align-items:center; gap:10px; flex-wrap:wrap}
+    .col{display:flex; flex-direction:column; gap:8px}
+    .grid-2{display:grid; grid-template-columns:1fr 1fr; gap:10px}
+    .grid-3{display:grid; grid-template-columns:repeat(3,1fr); gap:10px}
+    .pill{
+      display:inline-flex; align-items:center; gap:8px; padding:6px 10px; border:1px solid var(--border); background:var(--bg-soft);
+      border-radius:999px; font-weight:600; font-size:12px;
+    }
+    .pill.up{color:var(--up); border-color: color-mix(in oklab, var(--up), transparent 70%)}
+    .pill.down{color:var(--down); border-color: color-mix(in oklab, var(--down), transparent 70%)}
+    .list{display:flex; flex-direction:column; gap:8px}
+    .item{
+      display:flex; gap:10px; align-items:center; justify-content:space-between;
+      padding:10px 12px; border:1px solid var(--border); border-radius: var(--radius-sm);
+      background: color-mix(in oklab, var(--card) 92%, transparent);
+      transition: border-color .2s, transform .06s, background .2s;
+      cursor:pointer;
+    }
+    .item:hover{border-color:var(--accent); transform: translateY(-1px)}
+    .item .meta{display:flex; flex-direction:column; gap:2px}
+    .item .right{display:flex; gap:10px; align-items:center}
+    .tag{font-size:11px; color:var(--muted); border:1px dashed var(--border); padding:2px 6px; border-radius:6px}
+    .price{font-feature-settings:"tnum" 1, "lnum" 1; font-variant-numeric: tabular-nums}
+    .table{width:100%; border-collapse:collapse}
+    .table th, .table td{padding:8px 10px; border-bottom:1px dashed var(--border); text-align:left; vertical-align:middle}
+    .table th{font-size:12px; color:var(--muted); font-weight:600}
+    canvas{width:100%; height:320px; display:block; background:linear-gradient(180deg, color-mix(in oklab, var(--card), transparent 10%), color-mix(in oklab, var(--bg-soft), transparent 20%)); border-radius: var(--radius-sm); border:1px solid var(--border)}
+    .subchart{height:120px}
+    .toast{
+      position: fixed; bottom:18px; right:18px; z-index:100; display:flex; flex-direction:column; gap:8px; width:min(360px, 92vw);
+    }
+    .toast .msg{
+      background:var(--card); border:1px solid var(--border); border-left:6px solid var(--accent);
+      border-radius:12px; padding:10px 12px; box-shadow: var(--shadow); color:var(--text)
+    }
+    .help{font-size:12px; color:var(--muted)}
+    .divider{height:1px; background:var(--border); margin:10px 0}
+    .switch{display:inline-flex; align-items:center; gap:8px}
+    .switch input{appearance:none; width:42px; height:24px; background:var(--bg); border:1px solid var(--border); border-radius:999px; position:relative; cursor:pointer; transition:.2s}
+    .switch input:checked{background: color-mix(in oklab, var(--accent), var(--bg) 40%); border-color: color-mix(in oklab, var(--accent), var(--border) 70%)}
+    .switch input::after{content:""; position:absolute; top:2px; left:2px; width:20px; height:20px; border-radius:50%; background:#fff; transition:.2s; box-shadow:0 2px 8px rgba(0,0,0,.25)}
+    .switch input:checked::after{transform: translateX(18px)}
+    .mini{
+      font-size:12px; color:var(--muted)
+    }
+    .danger{color:var(--down)}
+    .success{color:var(--up)}
+    .warn{color:var(--warn)}
+    .right-align{text-align:right}
+    .nowrap{white-space:nowrap}
+    .hidden{display:none !important}
+  </style>
+</head>
+<body>
+  <header>
+    <div class="bar">
+      <div class="logo"><span class="logo-dot"></span> Trading Desk</div>
+      <div class="pill" id="connectionPill">Connessione: <strong class="mini">OK</strong></div>
+      <div class="spacer"></div>
+      <div class="toolbar">
+        <label class="switch">
+          <span class="mini">Tema</span>
+          <input id="themeToggle" type="checkbox" />
+        </label>
+        <select id="baseCurrency" class="select">
+          <option value="EUR">EUR (€)</option>
+          <option value="USD">USD ($)</option>
+        </select>
+        <span class="help">Scorciatoie: <span class="kbd">/</span> cerca, <span class="kbd">B</span> buy, <span class="kbd">S</span> sell</span>
+      </div>
+    </div>
+  </header>
+
+  <main>
+    <section class="panel" id="left">
+      <div class="head">
+        <div class="row">
+          <strong>Aggiungi asset</strong>
+        </div>
+      </div>
+      <div class="body">
+        <div class="col">
+          <input id="addInput" class="input" placeholder="Es. BTC, ethereum, EURUSD, EUR/JPY…" autocomplete="off" />
+          <div class="help">- Crypto via CoinGecko (nome o ticker).<br>- Forex come coppia a 3+3 lettere (con o senza slash).</div>
+          <div id="suggestions" class="list"></div>
+          <div class="divider"></div>
+          <strong>Watchlist</strong>
+          <div id="watchlist" class="list"></div>
+          <div class="divider"></div>
+          <strong>Portafoglio</strong>
+          <table class="table" id="portfolioTable">
+            <thead>
+              <tr>
+                <th>Asset</th>
+                <th>Qty</th>
+                <th>Prezzo</th>
+                <th>P/L</th>
+                <th class="right-align">Valore</th>
+              </tr>
+            </thead>
+            <tbody></tbody>
+            <tfoot>
+              <tr>
+                <th colspan="4">Totale</th>
+                <th class="right-align" id="portfolioTotal">—</th>
+              </tr>
+            </tfoot>
+          </table>
+        </div>
+      </div>
+    </section>
+
+    <section class="panel" id="right">
+      <div class="head">
+        <div class="row">
+          <strong id="activeTitle">Nessun asset selezionato</strong>
+          <span class="tag" id="activeType"></span>
+        </div>
+        <div class="row">
+          <span class="pill" id="activePricePill">Prezzo: —</span>
+          <span class="pill" id="activeChangePill">24h: —</span>
+          <span class="pill" id="activeSmaPill">SMA(14): —</span>
+          <span class="pill" id="activeRsiPill">RSI(14): —</span>
+        </div>
+      </div>
+      <div class="body">
+        <div class="col">
+          <canvas id="priceChart" width="1200" height="340"></canvas>
+          <canvas id="rsiChart" class="subchart" width="1200" height="140"></canvas>
+
+          <div class="grid-3">
+            <div class="col">
+              <label class="mini">Tipo ordine</label>
+              <select id="orderType" class="select">
+                <option value="market">Market</option>
+                <option value="limit">Limit</option>
+              </select>
+            </div>
+            <div class="col">
+              <label class="mini">Lato</label>
+              <select id="orderSide" class="select">
+                <option value="buy">Buy</option>
+                <option value="sell">Sell</option>
+              </select>
+            </div>
+            <div class="col">
+              <label class="mini">Quantità</label>
+              <input id="orderQty" class="input" type="number" min="0" step="any" placeholder="0.00" />
+            </div>
+          </div>
+          <div class="grid-2" id="limitPriceRow">
+            <div class="col">
+              <label class="mini">Prezzo limite</label>
+              <input id="orderLimit" class="input" type="number" min="0" step="any" placeholder="0.00" />
+            </div>
+            <div class="col">
+              <label class="mini">Commissione (%)</label>
+              <input id="orderFee" class="input" type="number" min="0" step="0.01" value="0.10" />
+            </div>
+          </div>
+          <div class="row">
+            <button id="placeOrderBtn" class="button primary">Invia ordine</button>
+            <button id="closeAllBtn" class="button ghost">Chiudi posizione</button>
+            <span class="spacer"></span>
+            <span class="help">Simulazione: no slippage, esecuzione immediata per market.</span>
+          </div>
+
+          <div class="divider"></div>
+          <strong>Ordini</strong>
+          <table class="table" id="ordersTable">
+            <thead>
+              <tr>
+                <th>Data</th>
+                <th>Tipo</th>
+                <th>Lato</th>
+                <th>Qty</th>
+                <th>Prezzo</th>
+                <th>Stato</th>
+              </tr>
+            </thead>
+            <tbody></tbody>
+          </table>
+
+        </div>
+      </div>
+    </section>
+  </main>
+
+  <div class="toast" id="toasts"></div>
+
+  <script>
+  ;(()=>{
+    // ========== Utilities ==========
+    const $ = (sel, ctx=document) => ctx.querySelector(sel);
+    const $$ = (sel, ctx=document) => Array.from(ctx.querySelectorAll(sel));
+    const fmt = Intl.NumberFormat(undefined, {maximumFractionDigits:6});
+    const fmt2 = Intl.NumberFormat(undefined, {maximumFractionDigits:2});
+    const fmtCurr = (c) => new Intl.NumberFormat(undefined, {style:'currency', currency:c});
+    const sleep = (ms) => new Promise(r=>setTimeout(r,ms));
+    const clamp = (v,min,max)=>Math.max(min,Math.min(max,v));
+    const nowISO = ()=>new Date().toISOString();
+
+    function toast(text, kind='info'){
+      const box = $('#toasts');
+      const el = document.createElement('div');
+      el.className = 'msg';
+      el.style.borderLeftColor = kind==='error' ? 'var(--down)'
+        : kind==='warn' ? 'var(--warn)' : 'var(--accent)';
+      el.textContent = text;
+      box.appendChild(el);
+      setTimeout(()=>{ el.style.opacity='0'; el.style.transform='translateY(6px)'; }, 3600);
+      setTimeout(()=>{ el.remove(); }, 4200);
+    }
+
+    function save(key, value){ localStorage.setItem(key, JSON.stringify(value)); }
+    function load(key, fallback){ try{ return JSON.parse(localStorage.getItem(key)) ?? fallback } catch{ return fallback } }
+
+    // ========== State ==========
+    const state = {
+      theme: load('theme','dark'),
+      base: load('base','EUR'),
+      rates: load('rates', null),
+      assets: load('assets', []), // {key,type,symbol,name,id?,pair?,price,change24h, history:[{t,p}], position:{qty,avg}, orders:[...]}
+      active: load('active', null),
+      coingeckoList: load('cg:list', null),
+      lastRatesAt: load('ratesAt', 0),
+    };
+
+    // ========== Providers (no-auth) ==========
+    const API = {
+      cg: 'https://api.coingecko.com/api/v3',
+      fx: 'https://api.exchangerate.host',
+    };
+
+    const RateLimiter = (() => {
+      let last = 0; const minInterval = 1200; // ~50/min safe
+      return async function guarded(fetcher){
+        const delta = Date.now() - last;
+        if(delta < minInterval) await sleep(minInterval - delta);
+        const res = await fetcher();
+        last = Date.now();
+        return res;
+      }
+    })();
+
+    const CoinGecko = {
+      async ensureList(){
+        if(state.coingeckoList && Array.isArray(state.coingeckoList)) return state.coingeckoList;
+        const res = await RateLimiter(()=> fetch(`${API.cg}/coins/list?include_platform=false`));
+        if(!res.ok) throw new Error('CoinGecko list failed');
+        const data = await res.json();
+        state.coingeckoList = data;
+        save('cg:list', data);
+        return data;
+      },
+      async search(query){
+        query = String(query||'').trim().toLowerCase();
+        if(!query) return [];
+        const list = await this.ensureList();
+        const scored = [];
+        for(const c of list){
+          const name = (c.name||'').toLowerCase();
+          const sym = (c.symbol||'').toLowerCase();
+          const id = (c.id||'').toLowerCase();
+          let score = 0;
+          if(id === query) score += 100;
+          if(sym === query) score += 90;
+          if(name === query) score += 80;
+          if(id.startsWith(query)) score += 40;
+          if(sym.startsWith(query)) score += 35;
+          if(name.startsWith(query)) score += 30;
+          if(name.includes(query)) score += 10;
+          if(score>0) scored.push({ ...c, score });
+        }
+        scored.sort((a,b)=>b.score-a.score);
+        return scored.slice(0,10);
+      },
+      async price(ids, vs){
+        const u = `${API.cg}/simple/price?ids=${encodeURIComponent(ids.join(','))}&vs_currencies=${encodeURIComponent(vs)}&include_24hr_change=true`;
+        const res = await RateLimiter(()=> fetch(u));
+        if(!res.ok) throw new Error('CoinGecko price failed');
+        return await res.json();
+      },
+      async marketChart(id, vs, days='30', interval='hourly'){
+        const u = `${API.cg}/coins/${encodeURIComponent(id)}/market_chart?vs_currency=${encodeURIComponent(vs)}&days=${days}&interval=${interval}`;
+        const res = await RateLimiter(()=> fetch(u));
+        if(!res.ok) throw new Error('CoinGecko chart failed');
+        const js = await res.json();
+        // Normalize to [{t,p}]
+        const out = (js.prices||[]).map(([t,p])=>({t, p}));
+        return out;
+      }
+    };
+
+    const Forex = {
+      async latest(base){
+        const res = await fetch(`${API.fx}/latest?base=${encodeURIComponent(base)}`);
+        if(!res.ok) throw new Error('FX latest failed');
+        const js = await res.json();
+        return js; // {rates:{USD:.., JPY:..}, base, date}
+      },
+      async timeseries(base, symbols, start, end){
+        const url = `${API.fx}/timeseries?base=${encodeURIComponent(base)}&symbols=${encodeURIComponent(symbols)}&start_date=${start}&end_date=${end}`;
+        const res = await fetch(url);
+        if(!res.ok) throw new Error('FX timeseries failed');
+        return await res.json(); // {rates:{'2024-01-01':{USD:..}}, base}
+      },
+      priceOfPair(pair){ // pair as {base:'USD', quote:'JPY'} => price quote per 1 base
+        if(!state.rates || !state.rates.rates) return null;
+        const rates = state.rates.rates; // X per 1 state.base
+        // price base->quote = rate(quote)/rate(base)
+        const rBase = rates[pair.base === state.base ? state.base : pair.base] || rates[pair.base];
+        const rQuote = rates[pair.quote === state.base ? state.base : pair.quote] || rates[pair.quote];
+        if(!rBase || !rQuote){
+          // if base equals state.base, rBase should be 1
+          const rb = pair.base === state.base ? 1 : rBase;
+          const rq = pair.quote === state.base ? 1 : rQuote;
+          if(rb && rq) return rq / rb;
+          return null;
+        }
+        return rQuote / rBase;
+      },
+      async historyOfPair(pair, days=60){
+        // Build via timeseries of both legs vs state.base, then compute ratio per day
+        const end = new Date();
+        const start = new Date(end.getTime() - days*86400000);
+        const sd = start.toISOString().slice(0,10);
+        const ed = end.toISOString().slice(0,10);
+        const symbols = `${pair.base},${pair.quote}`;
+        const js = await this.timeseries(state.base, symbols, sd, ed);
+        const out = [];
+        const dates = Object.keys(js.rates).sort();
+        for(const d of dates){
+          const rb = js.rates[d][pair.base] ?? (pair.base===state.base ? 1 : null);
+          const rq = js.rates[d][pair.quote] ?? (pair.quote===state.base ? 1 : null);
+          if(rb && rq){
+            out.push({ t: Date.parse(d), p: rq / rb });
+          }
+        }
+        return out;
+      }
+    };
+
+    // ========== Indicators ==========
+    function SMA(series, n){
+      const out = Array(series.length).fill(null);
+      let sum = 0;
+      for(let i=0;i<series.length;i++){
+        sum += series[i];
+        if(i>=n) sum -= series[i-n];
+        if(i>=n-1) out[i] = sum / n;
+      }
+      return out;
+    }
+    function RSI(series, n=14){
+      const out = Array(series.length).fill(null);
+      let gain=0, loss=0;
+      for(let i=1;i<series.length;i++){
+        const diff = series[i]-series[i-1];
+        const g = diff>0?diff:0;
+        const l = diff<0?-diff:0;
+        if(i<=n){
+          gain += g; loss += l;
+          if(i===n){
+            let avgG = gain/n, avgL = loss/n;
+            const rs = avgL===0 ? 100 : avgG/avgL;
+            out[i] = 100 - (100/(1+rs));
+            // Continue with Wilder's smoothing
+            for(let j=i+1;j<series.length;j++){
+              const d = series[j]-series[j-1];
+              const gj = d>0?d:0, lj = d<0?-d:0;
+              avgG = (avgG*(n-1)+gj)/n;
+              avgL = (avgL*(n-1)+lj)/n;
+              const rsj = avgL===0 ? 100 : avgG/avgL;
+              out[j] = 100 - (100/(1+rsj));
+            }
+            break;
+          }
+        }
+      }
+      return out;
+    }
+
+    // ========== Charts ==========
+    function drawChart(canvas, data, opts={}){
+      const ctx = canvas.getContext('2d');
+      const w = canvas.width, h = canvas.height;
+      ctx.clearRect(0,0,w,h);
+      if(!data || data.length<2){ drawNoData(ctx,w,h); return; }
+
+      const pad = 36, padR=60, padT=12, padB=24;
+      const xs = data.map(d=>d.t), ys = data.map(d=>d.p);
+      const minY = Math.min(...ys), maxY = Math.max(...ys);
+      const minX = Math.min(...xs), maxX = Math.max(...xs);
+
+      const x2px = t => pad + ( (t-minX)/(maxX-minX) ) * (w - pad - padR);
+      const y2px = p => (h - padB) - ( (p-minY)/(maxY-minY) ) * (h - padB - padT);
+
+      // Grid
+      ctx.strokeStyle = getComputedStyle(document.body).getPropertyValue('--border');
+      ctx.lineWidth = 1;
+      ctx.setLineDash([3,4]);
+      ctx.beginPath();
+      for(let i=0;i<=4;i++){
+        const y = padT + i*(h - padB - padT)/4;
+        ctx.moveTo(pad, y); ctx.lineTo(w-padR, y);
+      }
+      ctx.stroke();
+      ctx.setLineDash([]);
+
+      // Price line
+      ctx.lineWidth = 2;
+      const upColor = getComputedStyle(document.body).getPropertyValue('--up').trim() || '#41d19a';
+      const downColor = getComputedStyle(document.body).getPropertyValue('--down').trim() || '#ff6b6b';
+      const color = ys[ys.length-1]>=ys[0] ? upColor : downColor;
+      ctx.strokeStyle = color;
+      ctx.beginPath();
+      ctx.moveTo(x2px(xs[0]), y2px(ys[0]));
+      for(let i=1;i<xs.length;i++){
+        ctx.lineTo(x2px(xs[i]), y2px(ys[i]));
+      }
+      ctx.stroke();
+
+      // SMA overlay
+      if(opts.sma && opts.sma.length === ys.length){
+        ctx.strokeStyle = getComputedStyle(document.body).getPropertyValue('--accent');
+        ctx.lineWidth = 1.5;
+        ctx.beginPath();
+        let started=false;
+        for(let i=0;i<ys.length;i++){
+          const v = opts.sma[i];
+          if(v==null) continue;
+          const X=x2px(xs[i]), Y=y2px(v);
+          if(!started){ ctx.moveTo(X,Y); started=true; } else ctx.lineTo(X,Y);
+        }
+        ctx.stroke();
+      }
+
+      // Axes labels
+      ctx.fillStyle = getComputedStyle(document.body).getPropertyValue('--muted');
+      ctx.font = '12px ' + getComputedStyle(document.body).getPropertyValue('font-family');
+
+      const yTicks = 4;
+      for(let i=0;i<=yTicks;i++){
+        const yv = minY + i*(maxY-minY)/yTicks;
+        const y = y2px(yv);
+        ctx.fillText(fmt2.format(yv), w - padR + 6, y+4);
+      }
+      // time labels: start/mid/end
+      const tStart = new Date(minX), tMid = new Date((minX+maxX)/2), tEnd = new Date(maxX);
+      ctx.textAlign='center';
+      ctx.fillText(shortDate(tStart), x2px(minX), h - 6);
+      ctx.fillText(shortDate(tMid), x2px((minX+maxX)/2), h - 6);
+      ctx.fillText(shortDate(tEnd), x2px(maxX), h - 6);
+      ctx.textAlign='left';
+    }
+
+    function drawRSI(canvas, rsi){
+      const ctx = canvas.getContext('2d');
+      const w = canvas.width, h = canvas.height;
+      ctx.clearRect(0,0,w,h);
+      if(!rsi || rsi.filter(v=>v!=null).length<2){ drawNoData(ctx,w,h); return; }
+
+      const pad = 30, padR=30, padT=10, padB=18;
+      const xs = rsi.map((_,i)=>i);
+      const ys = rsi.map(v=>v==null?null: v);
+      const minY = 0, maxY = 100;
+
+      const x2px = i => pad + ( i/(xs.length-1) ) * (w - pad - padR);
+      const y2px = p => (h - padB) - ( (p-minY)/(maxY-minY) ) * (h - padB - padT);
+
+      // Grid + zones 30/70
+      const border = getComputedStyle(document.body).getPropertyValue('--border');
+      ctx.strokeStyle = border; ctx.lineWidth=1; ctx.setLineDash([3,4]);
+      ctx.beginPath();
+      for(let i=0;i<=4;i++){
+        const y = padT + i*(h - padB - padT)/4;
+        ctx.moveTo(pad, y); ctx.lineTo(w-padR, y);
+      }
+      ctx.stroke(); ctx.setLineDash([]);
+
+      ctx.strokeStyle = 'rgba(250, 173, 20, .6)';
+      ctx.beginPath();
+      ctx.moveTo(pad, y2px(70)); ctx.lineTo(w-padR, y2px(70));
+      ctx.moveTo(pad, y2px(30)); ctx.lineTo(w-padR, y2px(30));
+      ctx.stroke();
+
+      // Line
+      ctx.strokeStyle = getComputedStyle(document.body).getPropertyValue('--accent');
+      ctx.lineWidth = 1.5;
+      ctx.beginPath();
+      let started=false;
+      for(let i=0;i<ys.length;i++){
+        const v = ys[i];
+        if(v==null) continue;
+        const X = x2px(i), Y=y2px(v);
+        if(!started){ ctx.moveTo(X,Y); started=true; } else ctx.lineTo(X,Y);
+      }
+      ctx.stroke();
+
+      // Labels
+      ctx.fillStyle = getComputedStyle(document.body).getPropertyValue('--muted');
+      ctx.font = '12px ' + getComputedStyle(document.body).getPropertyValue('font-family');
+      ctx.fillText('70', 6, y2px(70)+4);
+      ctx.fillText('30', 6, y2px(30)+4);
+    }
+
+    function drawNoData(ctx,w,h){
+      ctx.fillStyle = getComputedStyle(document.body).getPropertyValue('--muted');
+      ctx.font = '13px ' + getComputedStyle(document.body).getPropertyValue('font-family');
+      ctx.textAlign='center';
+      ctx.fillText('Nessun dato da visualizzare', w/2, h/2);
+      ctx.textAlign='left';
+    }
+
+    function shortDate(d){
+      const dt = (d instanceof Date) ? d : new Date(d);
+      return dt.toLocaleDateString(undefined, {month:'short', day:'2-digit'});
+    }
+
+    // ========== Portfolio & Orders ==========
+    function findAsset(key){ return state.assets.find(a=>a.key===key); }
+
+    function ensureAsset(obj){
+      const exists = findAsset(obj.key);
+      if(exists) return exists;
+      state.assets.push(obj);
+      save('assets', state.assets);
+      return obj;
+    }
+
+    function setActive(key){
+      state.active = key;
+      save('active', key);
+      render();
+      refreshActiveData(true);
+    }
+
+    function placeOrder({type, side, qty, priceLimit, feePct}){
+      const a = findAsset(state.active);
+      if(!a){ toast('Seleziona un asset prima di inviare un ordine','warn'); return; }
+      qty = Number(qty||0); if(!(qty>0)){ toast('Quantità non valida','error'); return; }
+      feePct = Number(feePct||0); if(feePct<0) feePct=0;
+
+      const mktPrice = a.price;
+      let execPrice = null, status='open';
+      if(type==='market'){
+        execPrice = mktPrice;
+        status='filled';
+      } else if(type==='limit'){
+        priceLimit = Number(priceLimit||0);
+        if(!(priceLimit>0)){ toast('Prezzo limite non valido','error'); return; }
+        // Immediate fill check
+        if( (side==='buy' && mktPrice<=priceLimit) || (side==='sell' && mktPrice>=priceLimit) ){
+          execPrice = mktPrice; status='filled';
+        }
+      }
+      const order = {
+        id: cryptoRandom(),
+        ts: Date.now(),
+        type, side, qty, priceLimit: priceLimit || null,
+        status,
+        execPrice: execPrice,
+        feePct
+      };
+      a.orders.unshift(order);
+      if(status==='filled'){
+        applyFill(a, order);
+      }
+      save('assets', state.assets);
+      render();
+      toast(status==='filled' ? 'Ordine eseguito' : 'Ordine inserito');
+    }
+
+    function applyFill(a, order){
+      const fee = (order.execPrice * order.qty) * (order.feePct/100);
+      a.position = a.position || {qty:0, avg:0};
+      if(order.side==='buy'){
+        const cost = order.execPrice * order.qty + fee;
+        const newQty = a.position.qty + order.qty;
+        const newAvg = newQty === 0 ? 0 : ( (a.position.avg * a.position.qty) + cost ) / newQty;
+        a.position.qty = newQty;
+        a.position.avg = newAvg;
+      } else {
+        const proceeds = order.execPrice * order.qty - fee;
+        a.position.qty = clamp(a.position.qty - order.qty, 0, 1e12);
+        if(a.position.qty===0) a.position.avg = 0;
+        // Realized P/L is not persisted separate in this minimal version
+      }
+    }
+
+    function processLimitOrders(){
+      for(const a of state.assets){
+        if(!a.orders) continue;
+        for(const o of a.orders){
+          if(o.status!=='open') continue;
+          const mkt = a.price;
+          if(mkt==null) continue;
+          if( (o.side==='buy' && mkt<=o.priceLimit) || (o.side==='sell' && mkt>=o.priceLimit) ){
+            o.status = 'filled';
+            o.execPrice = mkt;
+            applyFill(a, o);
+            toast(`Limit ${o.side} eseguito su ${a.symbol} @ ${fmt2.format(mkt)}`);
+          }
+        }
+      }
+      save('assets', state.assets);
+      renderPortfolio();
+      renderOrders();
+    }
+
+    function closeAllPosition(){
+      const a = findAsset(state.active);
+      if(!a || !a.position || a.position.qty<=0){ toast('Nessuna posizione da chiudere','warn'); return; }
+      const side = 'sell';
+      const qty = a.position.qty;
+      const type = 'market';
+      const feePct = Number($('#orderFee').value||0);
+      const order = { id: cryptoRandom(), ts: Date.now(), type, side, qty, priceLimit:null, status:'filled', execPrice:a.price, feePct };
+      a.orders.unshift(order);
+      applyFill(a, order);
+      save('assets', state.assets);
+      render();
+      toast('Posizione chiusa', 'warn');
+    }
+
+    function portfolioMetrics(){
+      let total = 0;
+      for(const a of state.assets){
+        const qty = a.position?.qty||0;
+        if(qty>0 && a.price!=null){
+          total += qty * a.price;
+        }
+      }
+      return { total };
+    }
+
+    // ========== Data refresh ==========
+    async function refreshRates(force=false){
+      try{
+        const age = Date.now() - (state.lastRatesAt||0);
+        if(!force && state.rates && age < 60_000) return;
+        const js = await Forex.latest(state.base);
+        state.rates = js;
+        state.lastRatesAt = Date.now();
+        save('rates', js); save('ratesAt', state.lastRatesAt);
+      }catch(e){
+        console.error(e);
+        toast('Aggiornamento tassi FX fallito','error');
+        $('#connectionPill').innerHTML = 'Connessione: <strong class="mini danger">Problemi</strong>';
+        return;
+      }
+      $('#connectionPill').innerHTML = 'Connessione: <strong class="mini">OK</strong>';
+    }
+
+    async function refreshAssetPrice(a){
+      if(a.type==='crypto'){
+        const js = await CoinGecko.price([a.id], state.base.toLowerCase());
+        const ob = js[a.id];
+        if(ob){
+          a.price = ob[state.base.toLowerCase()];
+          a.change24h = ob[state.base.toLowerCase()+'_24h_change'] || 0;
+        }
+      } else if(a.type==='forex'){
+        const p = Forex.priceOfPair(a.pair);
+        if(p!=null){
+          a.price = p;
+          a.change24h = null; // compute from history if we want
+        }
+      }
+    }
+
+    async function refreshAssetHistory(a, force=false){
+      if(a._histAt && Date.now()-a._histAt < 60_000 && !force) return;
+      if(a.type==='crypto'){
+        const hist = await CoinGecko.marketChart(a.id, state.base.toLowerCase(), '60', 'hourly');
+        a.history = hist;
+      } else if(a.type==='forex'){
+        const hist = await Forex.historyOfPair(a.pair, 90);
+        a.history = hist;
+      }
+      a._histAt = Date.now();
+      computeIndicators(a);
+    }
+
+    function computeIndicators(a){
+      if(!a.history || a.history.length<5){ a.sma = null; a.rsi=null; return; }
+      const prices = a.history.map(d=>d.p);
+      a.sma = SMA(prices, 14);
+      a.rsi = RSI(prices, 14);
+    }
+
+    async function refreshAll(){
+      await refreshRates();
+      for(const a of state.assets){
+        try{
+          await refreshAssetPrice(a);
+        }catch(e){ console.error(e); toast(`Errore prezzo ${a.symbol}`,'error'); }
+      }
+      processLimitOrders();
+      renderWatchlist();
+      renderPortfolio();
+      renderActiveInfo();
+    }
+
+    async function refreshActiveData(force=false){
+      const key = state.active;
+      const a = findAsset(key);
+      if(!a) return;
+      try{
+        await refreshRates();
+        await refreshAssetPrice(a);
+        await refreshAssetHistory(a, force);
+      }catch(e){ console.error(e); toast('Aggiornamento asset fallito','error'); }
+      renderActiveInfo();
+      renderCharts();
+      processLimitOrders();
+    }
+
+    // ========== Parsing & helpers ==========
+    function parsePair(input){
+      const s = String(input).toUpperCase().replace(/\s+/g,'').replace('/','');
+      const m = s.match(/^([A-Z]{3})([A-Z]{3})$/);
+      if(!m) return null;
+      const base = m[1], quote = m[2];
+      if(base===quote) return null;
+      return { base, quote };
+    }
+    function cryptoRandom(){ return Math.random().toString(36).slice(2) + Math.random().toString(36).slice(2) }
+
+    // ========== Rendering ==========
+    function render(){
+      // Theme controls
+      document.body.dataset.theme = state.theme === 'light' ? 'light' : 'dark';
+      $('#themeToggle').checked = state.theme === 'light';
+      $('#baseCurrency').value = state.base;
+
+      renderWatchlist();
+      renderPortfolio();
+      renderOrders();
+      renderActiveInfo();
+      renderCharts();
+    }
+
+    function renderWatchlist(){
+      const box = $('#watchlist'); box.innerHTML='';
+      if(state.assets.length===0){
+        const el = document.createElement('div');
+        el.className='help';
+        el.textContent = 'Nessun asset. Cerca in alto a sinistra e aggiungi con Invio.';
+        box.appendChild(el);
+        return;
+      }
+      for(const a of state.assets){
+        const row = document.createElement('div');
+        row.className='item';
+        row.addEventListener('click', ()=> setActive(a.key));
+        const left = document.createElement('div');
+        left.className='meta';
+        const name = document.createElement('div');
+        name.innerHTML = `<strong>${a.symbol}</strong> <span class="muted">· ${a.name}</span>`;
+        const mini = document.createElement('div');
+        mini.className='mini';
+        mini.textContent = a.type==='crypto' ? 'Crypto (CoinGecko)' : 'Forex (exchangerate.host)';
+        left.appendChild(name); left.appendChild(mini);
+
+        const right = document.createElement('div'); right.className='right';
+        const price = document.createElement('div'); price.className='price';
+        price.textContent = a.price!=null ? fmtCurr(state.base).format(a.price) : '—';
+        const ch = document.createElement('span');
+        ch.className = 'pill ' + (a.change24h==null ? '' : a.change24h>=0 ? 'up' : 'down');
+        ch.textContent = a.change24h==null ? '—' : (a.change24h>=0?'+':'') + fmt2.format(a.change24h) + '%';
+
+        const del = document.createElement('button');
+        del.className='button'; del.textContent='Rimuovi';
+        del.addEventListener('click', (ev)=>{ ev.stopPropagation(); removeAsset(a.key); });
+
+        right.appendChild(price);
+        right.appendChild(ch);
+        right.appendChild(del);
+
+        row.appendChild(left);
+        row.appendChild(right);
+        box.appendChild(row);
+      }
+    }
+
+    function removeAsset(key){
+      const idx = state.assets.findIndex(a=>a.key===key);
+      if(idx>=0){
+        state.assets.splice(idx,1);
+        if(state.active===key) state.active = state.assets[0]?.key || null;
+        save('assets', state.assets); save('active', state.active);
+        render();
+      }
+    }
+
+    function renderPortfolio(){
+      const tbody = $('#portfolioTable tbody'); tbody.innerHTML='';
+      for(const a of state.assets){
+        const qty = a.position?.qty || 0;
+        const avg = a.position?.avg || 0;
+        const value = (qty>0 && a.price!=null) ? qty*a.price : 0;
+        const pl = (qty>0 && a.price!=null) ? (a.price - avg) * qty : 0;
+
+        const tr = document.createElement('tr');
+        tr.innerHTML = `
+          <td class="nowrap">${a.symbol} <span class="mini muted">· ${a.name}</span></td>
+          <td>${qty? fmt(qty): '—'}</td>
+          <td>${a.price!=null ? fmtCurr(state.base).format(a.price) : '—'}</td>
+          <td class="${pl>0?'success':pl<0?'danger':''}">${qty? fmtCurr(state.base).format(pl) : '—'}</td>
+          <td class="right-align">${value? fmtCurr(state.base).format(value): '—'}</td>
+        `;
+        tbody.appendChild(tr);
+      }
+      const {total} = portfolioMetrics();
+      $('#portfolioTotal').textContent = total ? fmtCurr(state.base).format(total) : '—';
+    }
+
+    function renderOrders(){
+      const a = findAsset(state.active);
+      const tbody = $('#ordersTable tbody'); tbody.innerHTML='';
+      if(!a || !a.orders || a.orders.length===0){
+        const tr = document.createElement('tr'); tr.innerHTML = `<td colspan="6" class="muted">Nessun ordine</td>`;
+        tbody.appendChild(tr); return;
+      }
+      for(const o of a.orders){
+        const tr = document.createElement('tr');
+        tr.innerHTML = `
+          <td>${new Date(o.ts).toLocaleString()}</td>
+          <td>${o.type}</td>
+          <td>${o.side}</td>
+          <td>${fmt(o.qty)}</td>
+          <td>${o.execPrice? fmtCurr(state.base).format(o.execPrice) : o.priceLimit? fmtCurr(state.base).format(o.priceLimit) : '—'}</td>
+          <td>${o.status}</td>
+        `;
+        tbody.appendChild(tr);
+      }
+    }
+
+    function renderActiveInfo(){
+      const a = findAsset(state.active);
+      $('#activeTitle').textContent = a ? `${a.symbol} · ${a.name}` : 'Nessun asset selezionato';
+      $('#activeType').textContent = a ? (a.type==='crypto' ? 'Crypto' : 'Forex') : '';
+      $('#activePricePill').textContent = 'Prezzo: ' + (a && a.price!=null ? fmtCurr(state.base).format(a.price) : '—');
+      $('#activeChangePill').textContent = '24h: ' + (a && a.change24h!=null ? (a.change24h>=0?'+':'')+fmt2.format(a.change24h)+'%' : '—');
+
+      const smaVal = a?.sma ? a.sma[a.sma.length-1] : null;
+      $('#activeSmaPill').textContent = 'SMA(14): ' + (smaVal!=null ? fmt2.format(smaVal) : '—');
+
+      const rsiVal = a?.rsi ? a.rsi[a.rsi.length-1] : null;
+      const rsiLabel = rsiVal==null ? '—' : fmt2.format(rsiVal);
+      $('#activeRsiPill').textContent = 'RSI(14): ' + rsiLabel;
+
+      // Show/hide order limit field
+      const type = $('#orderType').value;
+      $('#limitPriceRow').style.display = type==='limit' ? 'grid' : 'none';
+    }
+
+    function renderCharts(){
+      const a = findAsset(state.active);
+      const priceCanvas = $('#priceChart'), rsiCanvas = $('#rsiChart');
+      if(!a || !a.history){
+        const ctx = priceCanvas.getContext('2d'); ctx.clearRect(0,0,priceCanvas.width,priceCanvas.height);
+        const ctx2 = rsiCanvas.getContext('2d'); ctx2.clearRect(0,0,rsiCanvas.width,rsiCanvas.height);
+        drawNoData(ctx, priceCanvas.width, priceCanvas.height);
+        drawNoData(ctx2, rsiCanvas.width, rsiCanvas.height);
+        return;
+      }
+      drawChart(priceCanvas, a.history, {sma: a.sma});
+      drawRSI(rsiCanvas, a.rsi);
+    }
+
+    // ========== Search & Add ==========
+    function renderSuggestions(list){
+      const box = $('#suggestions'); box.innerHTML='';
+      if(!list || list.length===0){ box.classList.add('hidden'); return; }
+      box.classList.remove('hidden');
+      for(const s of list){
+        const row = document.createElement('div');
+        row.className='item';
+        row.innerHTML = `
+          <div class="meta">
+            <div><strong>${s.symbol?.toUpperCase?.()||s.symbol}</strong> <span class="muted">· ${s.name}</span></div>
+            <div class="mini muted">${s.type==='forex' ? `${s.pair.base}/${s.pair.quote}` : s.id}</div>
+          </div>
+          <div class="right">
+            <button class="button primary">Aggiungi</button>
+          </div>
+        `;
+        row.querySelector('button').addEventListener('click', (ev)=>{
+          ev.stopPropagation();
+          addAsset(s);
+          $('#suggestions').innerHTML='';
+        });
+        row.addEventListener('click', ()=>{
+          addAsset(s);
+          $('#suggestions').innerHTML='';
+        });
+        box.appendChild(row);
+      }
+    }
+
+    async function handleInputChange(){
+      const q = $('#addInput').value.trim();
+      if(!q){ renderSuggestions([]); return; }
+      // Check forex pair
+      const pair = parsePair(q);
+      if(pair){
+        const item = {
+          type:'forex',
+          key:`fx:${pair.base}${pair.quote}`,
+          symbol:`${pair.base}${pair.quote}`,
+          name:`${pair.base}/${pair.quote}`,
+          pair
+        };
+        renderSuggestions([item]);
+        return;
+      }
+      // Crypto search
+      try{
+        const res = await CoinGecko.search(q);
+        const mapped = res.map(c=>({
+          type:'crypto',
+          key:`cg:${c.id}`,
+          symbol:(c.symbol||'').toUpperCase(),
+          name:c.name,
+          id:c.id
+        }));
+        renderSuggestions(mapped);
+      }catch(e){
+        console.error(e);
+        toast('Ricerca CoinGecko fallita','error');
+      }
+    }
+
+    async function addAsset(item){
+      let obj;
+      if(item.type==='crypto'){
+        obj = ensureAsset({
+          key:item.key, type:'crypto', symbol:item.symbol, name:item.name, id:item.id,
+          price:null, change24h:null, history:null, position:{qty:0, avg:0}, orders:[]
+        });
+        setActive(obj.key);
+        await refreshAssetPrice(obj);
+        await refreshAssetHistory(obj, true);
+      } else if(item.type==='forex'){
+        obj = ensureAsset({
+          key:item.key, type:'forex', symbol:item.symbol, name:item.name, pair:item.pair,
+          price:null, change24h:null, history:null, position:{qty:0, avg:0}, orders:[]
+        });
+        setActive(obj.key);
+        await refreshRates(true);
+        await refreshAssetPrice(obj);
+        await refreshAssetHistory(obj, true);
+      }
+      save('assets', state.assets);
+      render();
+      toast('Asset aggiunto alla watchlist');
+      $('#addInput').value='';
+    }
+
+    // ========== Events ==========
+    function bindEvents(){
+      $('#themeToggle').addEventListener('change', (e)=>{
+        state.theme = e.target.checked ? 'light' : 'dark';
+        save('theme', state.theme);
+        render();
+      });
+      $('#baseCurrency').addEventListener('change', async (e)=>{
+        state.base = e.target.value;
+        save('base', state.base);
+        await refreshAll();
+        await refreshActiveData(true);
+      });
+      $('#addInput').addEventListener('input', debounce(handleInputChange, 180));
+      $('#addInput').addEventListener('keydown', (e)=>{
+        if(e.key==='Enter'){
+          const sug = $('#suggestions .item');
+          if(sug){ sug.click(); }
+        }
+      });
+      $('#orderType').addEventListener('change', renderActiveInfo);
+      $('#placeOrderBtn').addEventListener('click', ()=>{
+        placeOrder({
+          type: $('#orderType').value,
+          side: $('#orderSide').value,
+          qty: $('#orderQty').value,
+          priceLimit: $('#orderLimit').value,
+          feePct: $('#orderFee').value
+        });
+      });
+      $('#closeAllBtn').addEventListener('click', closeAllPosition);
+
+      window.addEventListener('keydown', (e)=>{
+        if(e.key==='/'){ e.preventDefault(); $('#addInput').focus(); $('#addInput').select(); }
+        if(e.key.toLowerCase()==='b'){ e.preventDefault(); $('#orderSide').value='buy'; }
+        if(e.key.toLowerCase()==='s'){ e.preventDefault(); $('#orderSide').value='sell'; }
+        if(e.key==='Escape'){ $('#suggestions').innerHTML=''; }
+      });
+
+      // Periodic refresh
+      setInterval(refreshAll, 30_000);
+      setInterval(()=> refreshActiveData(false), 40_000);
+
+      // Resize: scale canvases to CSS size for crispness
+      const resize = ()=>{
+        for(const c of [$('#priceChart'), $('#rsiChart')]){
+          const rect = c.getBoundingClientRect();
+          const dpr = window.devicePixelRatio || 1;
+          c.width = Math.floor(rect.width * dpr);
+          c.height = Math.floor(parseInt(getComputedStyle(c).height) * dpr);
+        }
+        renderCharts();
+      };
+      window.addEventListener('resize', debounce(resize, 120));
+      resize();
+    }
+
+    function debounce(fn, ms){
+      let t; return (...args)=>{ clearTimeout(t); t=setTimeout(()=>fn(...args), ms); };
+    }
+
+    // ========== Init ==========
+    (async function init(){
+      bindEvents();
+      render();
+      try{
+        await refreshAll();
+        if(!state.active && state.assets[0]) setActive(state.assets[0].key);
+      }catch(e){ console.error(e); toast('Errore inizializzazione','error'); }
+    })();
+
+  })();
+  </script>
+</body>
+</html>
