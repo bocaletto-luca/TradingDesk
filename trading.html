@@ -1,0 +1,239 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="dark">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Trading Desk — Free Crypto & Forex Simulator</title>
+  <meta name="description" content="Single-page trading simulator using only free, no-auth APIs. Crypto via CoinGecko, FX via exchangerate.host." />
+  <link rel="preconnect" href="https://api.coingecko.com" />
+  <link rel="preconnect" href="https://api.exchangerate.host" />
+  <style>
+    :root{
+      --bg: #0b0e12; --bg-soft:#11151b; --card:#141922; --muted:#8b97a3; --text:#e6ebf0;
+      --accent:#4cc9f0; --accent-2:#a0e9ff; --up:#41d19a; --down:#ff6b6b; --warn:#faae2b;
+      --border:#202835; --shadow: 0 8px 28px rgba(0,0,0,.35);
+      --radius: 14px; --radius-sm: 10px; --radius-xs: 8px; --gap: 14px;
+      --font: ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, Inter, Arial, "Apple Color Emoji", "Segoe UI Emoji";
+      --mono: ui-monospace, "SF Mono", Menlo, Consolas, monospace;
+    }
+    [data-theme="light"]{
+      --bg:#f6f8fb; --bg-soft:#fff; --card:#ffffff; --muted:#4b5563; --text:#0f172a;
+      --accent:#2563eb; --accent-2:#60a5fa; --up:#059669; --down:#dc2626; --warn:#b45309;
+      --border:#e5e7eb; --shadow: 0 12px 28px rgba(2,8,23,.08);
+    }
+    *{box-sizing:border-box}
+    html,body{height:100%}
+    body{
+      margin:0; background:linear-gradient(180deg,var(--bg) 0%, var(--bg-soft) 100%); color:var(--text);
+      font: 14px/1.4 var(--font); letter-spacing:.2px;
+    }
+    header{
+      position:sticky; top:0; z-index:10; backdrop-filter:saturate(1.2) blur(10px);
+      background: color-mix(in oklab, var(--bg) 80%, transparent); border-bottom:1px solid var(--border);
+    }
+    .bar{
+      display:flex; align-items:center; gap:12px; flex-wrap:wrap;
+      padding: 14px clamp(12px,2vw,24px); max-width:1280px; margin:0 auto;
+    }
+    .logo{display:flex; align-items:center; gap:10px; font-weight:800; letter-spacing:.4px; white-space:nowrap;}
+    .logo-dot{
+      width:10px; height:10px; border-radius:50%;
+      background: radial-gradient(circle at 30% 30%, var(--accent-2), var(--accent));
+      box-shadow: 0 0 0 4px color-mix(in oklab, var(--accent) 15%, transparent), 0 0 18px var(--accent);
+      flex:0 0 auto;
+    }
+    .spacer{flex:1 1 auto; min-width:10px}
+    .toolbar{
+      display:flex; gap:10px; align-items:center; flex-wrap:wrap; justify-content:flex-end; margin-left:auto;
+    }
+    .toolbar > *{flex:0 0 auto}
+    .select, .input, .button{
+      appearance:none; border:1px solid var(--border); background:var(--card); color:var(--text);
+      border-radius: var(--radius-xs); padding:10px 12px; outline:none; box-shadow:none; max-width:100%;
+      transition: border-color .2s, transform .06s, background .2s;
+    }
+    .input, .select{min-width: 140px}
+    .input.full{min-width: 220px}
+    .select:focus, .input:focus{border-color:var(--accent)}
+    .button{
+      cursor:pointer; font-weight:600; display:inline-flex; align-items:center; justify-content:center;
+      white-space:nowrap; gap:8px; min-height:40px;
+    }
+    .button:hover{border-color:var(--accent); transform: translateY(-1px)}
+    .button.primary{
+      background: linear-gradient(180deg, var(--accent-2), var(--accent));
+      color:#001018; border-color: color-mix(in oklab, var(--accent), transparent 70%);
+    }
+    .button.ghost{background:transparent}
+    .kbd{
+      font-family:var(--mono); font-size:12px; border:1px solid var(--border); border-bottom-width:2px;
+      padding:2px 6px; border-radius:6px; background:var(--card); color:var(--muted);
+    }
+    main{
+      max-width:1280px; margin:18px auto; padding: 0 clamp(12px,2vw,24px);
+      display:grid; grid-template-columns:280px 1fr; gap: var(--gap);
+    }
+    @media (max-width: 980px){ main{grid-template-columns:1fr}}
+    .panel{
+      background: var(--card); border:1px solid var(--border); border-radius: var(--radius);
+      box-shadow: var(--shadow); overflow:hidden;
+    }
+    .panel .head{
+      display:flex; align-items:center; justify-content:space-between; gap:10px; padding:14px 16px; border-bottom:1px solid var(--border);
+      flex-wrap:wrap;
+    }
+    .panel .body{padding:12px 14px}
+    .muted{color:var(--muted)}
+    .row{display:flex; align-items:center; gap:10px; flex-wrap:wrap}
+    .col{display:flex; flex-direction:column; gap:8px; min-width:0}
+    .grid-2{display:grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap:10px}
+    .grid-3{display:grid; grid-template-columns: repeat(auto-fit, minmax(160px, 1fr)); gap:10px}
+    .order-actions{display:flex; flex-wrap:wrap; gap:10px; align-items:center}
+    .order-actions .button{flex:0 0 auto}
+    .order-actions .spacer{flex:1 1 auto; min-width:10px}
+    .help{font-size:12px; color:var(--muted)}
+    .pill{
+      display:inline-flex; align-items:center; gap:8px; padding:6px 10px; border:1px solid var(--border); background:var(--bg-soft);
+      border-radius:999px; font-weight:600; font-size:12px; white-space:nowrap;
+    }
+    .pill.up{color:var(--up); border-color: color-mix(in oklab, var(--up), transparent 70%)}
+    .pill.down{color:var(--down); border-color: color-mix(in oklab, var(--down), transparent 70%)}
+    .list{display:flex; flex-direction:column; gap:8px}
+    .item{
+      display:flex; gap:10px; align-items:center; justify-content:space-between;
+      padding:10px 12px; border:1px solid var(--border); border-radius: var(--radius-sm);
+      background: color-mix(in oklab, var(--card) 92%, transparent);
+      transition: border-color .2s, transform .06s, background .2s;
+      cursor:pointer; overflow:hidden;
+    }
+    .item:hover{border-color:var(--accent); transform: translateY(-1px)}
+    .item .meta{display:flex; flex-direction:column; gap:2px; min-width:0}
+    .item .right{display:flex; gap:10px; align-items:center; flex-wrap:wrap}
+    .tag{font-size:11px; color:var(--muted); border:1px dashed var(--border); padding:2px 6px; border-radius:6px}
+    .price{font-feature-settings:"tnum" 1, "lnum" 1; font-variant-numeric: tabular-nums}
+    .table{width:100%; border-collapse:collapse; table-layout:auto}
+    .table th, .table td{padding:8px 10px; border-bottom:1px dashed var(--border); text-align:left; vertical-align:middle}
+    .table th{font-size:12px; color:var(--muted); font-weight:600}
+    canvas{width:100%; height:320px; display:block; background:linear-gradient(180deg, color-mix(in oklab, var(--card), transparent 10%), color-mix(in oklab, var(--bg-soft), transparent 20%)); border-radius: var(--radius-sm); border:1px solid var(--border)}
+    .subchart{height:120px}
+    .toast{
+      position: fixed; bottom:18px; right:18px; z-index:100; display:flex; flex-direction:column; gap:8px; width:min(360px, 92vw);
+    }
+    .toast .msg{
+      background:var(--card); border:1px solid var(--border); border-left:6px solid var(--accent);
+      border-radius:12px; padding:10px 12px; box-shadow: var(--shadow); color:var(--text)
+    }
+    .divider{height:1px; background:var(--border); margin:10px 0}
+    .switch{display:inline-flex; align-items:center; gap:8px}
+    .switch input{appearance:none; width:42px; height:24px; background:var(--bg); border:1px solid var(--border); border-radius:999px; position:relative; cursor:pointer; transition:.2s}
+    .switch input:checked{background: color-mix(in oklab, var(--accent), var(--bg) 40%); border-color: color-mix(in oklab, var(--accent), var(--border) 70%)}
+    .switch input::after{content:""; position:absolute; top:2px; left:2px; width:20px; height:20px; border-radius:50%; background:#fff; transition:.2s; box-shadow:0 2px 8px rgba(0,0,0,.25)}
+    .switch input:checked::after{transform: translateX(18px)}
+    .mini{font-size:12px; color:var(--muted)}
+    .danger{color:var(--down)}
+    .success{color:var(--up)}
+    .warn{color:var(--warn)}
+    .right-align{text-align:right}
+    .nowrap{white-space:nowrap}
+    .hidden{display:none !important}
+  </style>
+</head>
+<body>
+  <header>
+    <div class="bar">
+      <div class="logo"><span class="logo-dot"></span> Trading Desk</div>
+      <div class="pill" id="connectionPill">Connection: <strong class="mini">OK</strong></div>
+      <div class="spacer"></div>
+      <div class="toolbar">
+        <input id="playerName" class="input full" placeholder="Player name (saved locally)" />
+        <label class="switch"><span class="mini">Theme</span><input id="themeToggle" type="checkbox" /></label>
+        <select id="baseCurrency" class="select">
+          <option value="EUR">EUR (€)</option>
+          <option value="USD">USD ($)</option>
+          <option value="GBP">GBP (£)</option>
+        </select>
+        <span class="help">Shortcuts: <span class="kbd">/</span> search, <span class="kbd">B</span> buy, <span class="kbd">S</span> sell</span>
+      </div>
+    </div>
+  </header>
+
+  <main>
+    <section class="panel" id="left">
+      <div class="head"><div class="row"><strong>Add assets</strong></div></div>
+      <div class="body">
+        <div class="col">
+          <input id="addInput" class="input" placeholder="e.g., BTC, ethereum, EURUSD, EUR/JPY…" autocomplete="off" />
+          <div class="help">- Crypto via CoinGecko (name or ticker).<br>- Forex as a 3+3 pair (with or without slash).</div>
+          <div id="suggestions" class="list"></div>
+          <div class="divider"></div>
+          <strong>Watchlist</strong>
+          <div id="watchlist" class="list"></div>
+          <div class="divider"></div>
+          <strong>Portfolio</strong>
+          <table class="table" id="portfolioTable">
+            <thead><tr><th>Asset</th><th>Qty</th><th>Price</th><th>P/L</th><th class="right-align">Value</th></tr></thead>
+            <tbody></tbody>
+            <tfoot><tr><th colspan="4">Total</th><th class="right-align" id="portfolioTotal">—</th></tr></tfoot>
+          </table>
+        </div>
+      </div>
+    </section>
+
+    <section class="panel" id="right">
+      <div class="head">
+        <div class="row">
+          <strong id="activeTitle">No asset selected</strong>
+          <span class="tag" id="activeType"></span>
+        </div>
+        <div class="row">
+          <span class="pill" id="activePricePill">Price: —</span>
+          <span class="pill" id="activeChangePill">24h: —</span>
+          <span class="pill" id="activeSmaPill">SMA(14): —</span>
+          <span class="pill" id="activeRsiPill">RSI(14): —</span>
+        </div>
+      </div>
+      <div class="body">
+        <div class="col">
+          <canvas id="priceChart" width="1200" height="340"></canvas>
+          <canvas id="rsiChart" class="subchart" width="1200" height="140"></canvas>
+
+          <div class="grid-3">
+            <div class="col"><label class="mini">Order type</label>
+              <select id="orderType" class="select"><option value="market">Market</option><option value="limit">Limit</option></select></div>
+            <div class="col"><label class="mini">Side</label>
+              <select id="orderSide" class="select"><option value="buy">Buy</option><option value="sell">Sell</option></select></div>
+            <div class="col"><label class="mini">Quantity</label>
+              <input id="orderQty" class="input" type="number" min="0" step="any" placeholder="0.00" /></div>
+          </div>
+
+          <div class="grid-2" id="limitPriceRow">
+            <div class="col"><label class="mini">Limit price</label>
+              <input id="orderLimit" class="input" type="number" min="0" step="any" placeholder="0.00" /></div>
+            <div class="col"><label class="mini">Fee (%)</label>
+              <input id="orderFee" class="input" type="number" min="0" step="0.01" value="0.10" /></div>
+          </div>
+
+          <div class="order-actions">
+            <button id="placeOrderBtn" class="button primary">Place order</button>
+            <button id="closeAllBtn" class="button ghost">Close position</button>
+            <span class="spacer"></span>
+            <span class="help">Simulation: no slippage, market fills immediately.</span>
+          </div>
+
+          <div class="divider"></div>
+          <strong>Orders</strong>
+          <table class="table" id="ordersTable">
+            <thead><tr><th>Time</th><th>Type</th><th>Side</th><th>Qty</th><th>Price</th><th>Status</th><th>Player</th></tr></thead>
+            <tbody></tbody>
+          </table>
+
+        </div>
+      </div>
+    </section>
+  </main>
+
+  <div class="toast" id="toasts"></div>
+
+  <script src="./trading.js"></script>
+</body>
+</html>
